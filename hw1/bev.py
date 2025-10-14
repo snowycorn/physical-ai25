@@ -15,6 +15,7 @@ class Projection(object):
         else:
             self.image = cv2.imread(image_path)
         self.height, self.width, self.channels = self.image.shape
+        self.points = np.array(points, dtype=np.float32)
 
     def top_to_front(self, theta=0, phi=0, gamma=0, dx=0, dy=0, dz=0, fov=90):
         """
@@ -23,8 +24,59 @@ class Projection(object):
         """
 
         ### TODO ###
-        return new_pixels
+        # --- 相機內參 ---
+        f = (self.width / 2) / np.tan(np.deg2rad(fov / 2))
+        K = np.array([
+            [f, 0, self.width / 2],
+            [0, f, self.height / 2],
+            [0, 0, 1]
+        ])
+        K_inv = np.linalg.inv(K)
 
+        # --- 相機外參 ---
+        # Front camera to world
+        R_front_to_world = self._rotation_matrix(0, 0, 0)
+        C_front = np.array([[0], [1], [0]])
+        
+        # Top camera to world
+        R_top_to_world = self._rotation_matrix(np.deg2rad(theta), np.deg2rad(phi), np.deg2rad(gamma)) 
+        C_top = np.array([[0], [2.5], [0]])
+                
+        # --- 投影 ---
+        # Top pixel 2D -> Top camera 3D
+        points_top_pixel = np.hstack([self.points, np.ones((len(self.points), 1))]).T  # 3xN
+        rays_top = K_inv @ points_top_pixel  # 3xN
+        
+        # Rotate to world
+        rays_world = R_top_to_world @ rays_top  # 3xN
+        # Intersect ground Y=0 in world coordinates
+        t = - C_top[1,0] / rays_world[1, :]   # scale
+        points_world = C_top + rays_world * t  # 3xN
+
+        # World -> Front camera 3D
+        points_front = R_front_to_world.T @ (points_world - C_front)
+
+        # Project to front pixel 2D
+        proj_points = K @ points_front
+        proj_points /= proj_points[2, :]
+        new_pixels = proj_points[:2, :].T.astype(np.int32)
+        
+        return new_pixels
+    
+    def _rotation_matrix(self, theta, phi, gamma):
+        """Return rotation matrix """
+        Rx = np.array([[1, 0, 0],
+                       [0, np.cos(theta), -np.sin(theta)],
+                       [0, np.sin(theta), np.cos(theta)]])
+        Ry = np.array([[np.cos(phi), 0, np.sin(phi)],
+                       [0, 1, 0],
+                       [-np.sin(phi), 0, np.cos(phi)]])
+        Rz = np.array([[np.cos(gamma), -np.sin(gamma), 0],
+                       [np.sin(gamma), np.cos(gamma), 0],
+                       [0, 0, 1]])
+        return Rz @ Ry @ Rx
+    
+    
     def show_image(self, new_pixels, img_name='projection.png', color=(0, 0, 255), alpha=0.4):
         """
             Show the projection result and fill the selected area on perspective(front) view image.
