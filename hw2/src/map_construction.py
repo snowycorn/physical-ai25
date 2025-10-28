@@ -24,7 +24,6 @@ def map_construction(point_path="semantic_3d_pointcloud/point.npy", color_path="
     
     # === Add reference point ===
     world_ref = np.array([[0, -2], [2, 1]])
-    # reference_color = [[[0, 0, 0]], [[0, 0, 0]]]
     coords_2d = np.vstack([coords_2d, world_ref])
     colors_filtered = np.vstack([colors_filtered, [[0, 0, 0]], [[0, 0, 0]]]) 
 

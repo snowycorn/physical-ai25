@@ -167,27 +167,22 @@ class RRT:
         path.reverse()  
         return np.array(path)   # (N, 2)
 
-    def visualize(self, target_category=""):
+    def visualize(self):
         vis_map = self.map.copy()
-
         # Draw all edges (black lines)
         for node in self.nodes:
             if node.parent is not None:
                 cv2.line(vis_map, node.position, node.parent.position, (0, 0, 0), 1)
-
         # Draw all nodes (purple circle)
         for node in self.nodes:
             if node is not self.start and node is not self.goal:
                 cv2.circle(vis_map, node.position, 3, (255, 0, 255), -1)
-
         # Draw start (green circle)
         cv2.circle(vis_map, self.start.position, 8, (0, 255, 0), -1)
-        
         # Check if the path if found
         if self.goal:
             # Draw goal (cyan circle)
             cv2.circle(vis_map, self.goal.position, 8, (0, 255, 255), -1)
-
             # Draw final path (red line)
             prev_position = None
             for position in self.path:

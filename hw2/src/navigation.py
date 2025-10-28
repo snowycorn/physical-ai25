@@ -148,7 +148,6 @@ def navigatePath(path, target_label, test_scene, info_semantic, save_video_path,
                
         while True:  
             agent_state = agent.get_state()
-            
             agent_position = agent_state.position[[0, 2]]
             agent_yaw = get_yaw_from_quat(agent_state.rotation)
             print("agent position: ", agent_position)
@@ -190,7 +189,6 @@ def navigatePath(path, target_label, test_scene, info_semantic, save_video_path,
             
             cv2.imshow("RGB", blended_bgr)
             cv2.waitKey(1)
-            
             # write frame to video 
             video_writer.write(blended_bgr)
             
