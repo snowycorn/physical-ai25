@@ -1,1 +1,6 @@
 *__pycache__/
+
+# dataset
+*.zip
+*.h5
+*.pkl

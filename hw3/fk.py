@@ -58,14 +58,41 @@ def your_fk(DH_params : dict, q : list or tuple or np.ndarray, base_pos) -> np.n
     # -------------------------------------------------------------------------------- #
     
     #### your code ####
-    
-
     # A = ? # may be more than one line
     # jacobian = ? # may be more than one line
-
-    raise NotImplementedError
     # hint : 
     # https://automaticaddison.com/the-ultimate-guide-to-jacobian-matrices-for-robotics/
+    
+    T = np.eye(4)
+    T_list = []
+    
+    # forward kinematics
+    for i in range(6):
+        T_list.append(T)
+        
+        a = DH_params[i]['a']
+        d = DH_params[i]['d']
+        alpha = DH_params[i]['alpha']
+        theta = q[i]
+
+        # DH 轉換矩陣
+        T_i = np.array([
+            [np.cos(theta), -np.sin(theta)*np.cos(alpha),  np.sin(theta)*np.sin(alpha), a*np.cos(theta)],
+            [np.sin(theta),  np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), a*np.sin(theta)],
+            [0,              np.sin(alpha),                np.cos(alpha),               d],
+            [0,              0,                            0,                           1]
+        ])
+    
+        T = T @ T_i
+
+    A = A @ T
+    
+    # Jacobian
+    for i in range(6):
+        p = T[:3, 3] - T_list[i][:3, 3]
+        z = T_list[i][:3, 2]
+        v = np.cross(z, p)
+        jacobian[:, i] = np.concatenate((v, z), axis=0)
     
     ###############################################
 
