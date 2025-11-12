@@ -26,6 +26,7 @@ import dataset
 import tasks
 from environments.environment import Environment
 import tensorflow as tf
+import time
 
 flags.DEFINE_string('root_dir', '.', '')
 flags.DEFINE_string('data_dir', '.', '')
@@ -90,6 +91,7 @@ def main(unused_argv):
 
     # Run testing and save total rewards with last transition info.
     results = []
+    runtime = 0
     print("============================ Task 3 : Transporter Network ============================\n")
     for i in range(ds.n_episodes):
       print(f'Test: {i + 1}/{ds.n_episodes}')
@@ -102,6 +104,8 @@ def main(unused_argv):
       obs = env.reset()
       info = None
       reward = 0
+      
+      start_time = time.time()
       for _ in range(task.max_steps):
         act = agent.act(obs, info, goal)
         obs, reward, done, info = env.step(act)
@@ -110,6 +114,7 @@ def main(unused_argv):
         if done:
           break
       results.append((total_reward, info))
+      runtime += time.time() - start_time
 
       # Save results.
       with tf.io.gfile.GFile(
@@ -127,6 +132,7 @@ def main(unused_argv):
 
   print("====================================================================================")
   print("- Your Total Score : {:00.03f} / {:00.03f}".format(your_score , TASK3_SCORE_MAX))
+  print("- Runtime: {:00.03f}".format(runtime))
   print("====================================================================================")
 
 

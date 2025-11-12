@@ -90,7 +90,7 @@ def your_ik(robot_id, new_pose : list or tuple or np.ndarray,
     alpha = 0.5      # step rate
     for _ in range(max_iters):
         # Forward Kinematics
-        cur_pose, J = your_fk(dh_params, tmp_q, base_pos)
+        cur_pose, jacobian = your_fk(dh_params, tmp_q, base_pos)
         cur_pos = cur_pose[:3]
         cur_quat = cur_pose[3:]
 
@@ -111,9 +111,65 @@ def your_ik(robot_id, new_pose : list or tuple or np.ndarray,
             break
 
         # --- pseudo inverse Jacobian update ---
-        J_pinv = pinv(J)
-        dq = alpha * (J_pinv @ dx)
-        tmp_q += dq
+        J_pinv = pinv(jacobian)
+        dq = J_pinv @ dx
+        tmp_q += alpha * dq
+
+        # --- clamp to joint limits ---
+        for i in range(6):
+            tmp_q[i] = np.clip(tmp_q[i], joint_limits[i,0], joint_limits[i,1])
+
+    return list(tmp_q) # 6 DoF
+
+def other_ik(robot_id, new_pose : list or tuple or np.ndarray, 
+                base_pos, max_iters : int=1000, stop_thresh : float=.001):
+
+    joint_limits = np.asarray([
+            [-3*np.pi/2, -np.pi/2], # joint1
+            [-2.3562, -1],           # joint2
+            [-17, 17],              # joint3
+            [-17, 17],              # joint4
+            [-17, 17],              # joint5
+            [-17, 17],              # joint6
+        ])
+
+    # get current joint angles and gripper pos, (gripper pos is fixed)
+    num_q = p.getNumJoints(robot_id)
+    q_states = p.getJointStates(robot_id, range(0, num_q))
+    
+    tmp_q = np.asarray([x[0] for x in q_states][2:8]) # current joint angles 6d (You only need to modify this)
+        
+    target_pos = np.array(new_pose[:3])
+    target_quat = np.array(new_pose[3:])  # (x, y, z, w)
+    dh_params = get_ur5_DH_params()
+
+    alpha = 0.1      # step rate
+    for _ in range(max_iters):
+        # Forward Kinematics
+        cur_pose, jacobian = your_fk(dh_params, tmp_q, base_pos)
+        cur_pos = cur_pose[:3]
+        cur_quat = cur_pose[3:]
+
+        # --- position error ---
+        pos_err = target_pos - cur_pos
+
+        # --- orientation error (convert quaternion diff -> axis-angle) ---
+        r_target = R.from_quat(target_quat)
+        r_current = R.from_quat(cur_quat)
+        r_err = r_target * r_current.inv()
+        rotvec_err = r_err.as_rotvec()
+
+        # --- combine error ---
+        dx = np.hstack((pos_err, rotvec_err))
+
+        # --- stop condition ---
+        if np.linalg.norm(dx) < stop_thresh:
+            break
+
+        # --- transposed Jacobian update ---
+        J_transpose = jacobian.T
+        dq = J_transpose @ dx
+        tmp_q += alpha * dq
 
         # --- clamp to joint limits ---
         for i in range(6):
@@ -162,6 +218,7 @@ def score_ik(robot, testcase_files : str, visualize : bool=False):
 
             # You can use `pybullet_ik` to see the correct version 
             # your_joint_poses = pybullet_ik(robot.robot_id, poses[i]) 
+            # your_joint_poses = other_ik(robot.robot_id, poses[i], base_pos=robot._base_position) 
 
             gt_pose = poses[i]        
 
